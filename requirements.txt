@@ -1,0 +1,11 @@
+streamlit==1.32.0
+pandas
+numpy
+scikit-learn
+tensorflow
+shap
+folium
+streamlit-folium
+plotly
+pyarrow
+geopandas
