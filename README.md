@@ -151,7 +151,8 @@ VesselWatch/
 ├── assets/
 │   ├── dashboard.png               ← Main dashboard screenshot
 │   ├── analytics.png               ← Charts and anomaly breakdown
-│   └── shap.png                    ← SHAP explainability view
+│   ├── shap.png                    ← SHAP explainability view
+    └── map_popup.png               ← Detail of each vessel in dashboard
 └── notebooks/
     └── VesselWatch_V2.ipynb        ← Full ML pipeline, step by step
 ```
