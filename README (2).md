@@ -3,7 +3,6 @@
 
 [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Open_Dashboard-00b37e?style=for-the-badge)](https://vesselwatch-vmzc2tetunqfqmv7wgblw7.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.20-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://tensorflow.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Deployed-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
 
 ---
