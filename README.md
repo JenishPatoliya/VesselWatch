@@ -143,7 +143,7 @@ Every flagged vessel comes with a full breakdown of which features drove the ris
 | Layer | Tools |
 |-------|-------|
 | Data processing | Python · Pandas · NumPy |
-| Machine learning | Scikit-learn · TensorFlow · Keras · imbalanced-learn |
+| Machine learning | Scikit-learn · PyTorch · imbalanced-learn |
 | Explainability | SHAP |
 | Mapping | Folium · GeoPandas |
 | Dashboard | Streamlit |
