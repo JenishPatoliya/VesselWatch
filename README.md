@@ -12,7 +12,7 @@ VesselWatch processes **5.6 million real AIS vessel tracking records** to automa
 **[👉 Open the live dashboard](https://vesselwatch-vmzc2tetunqfqmv7wgblw7.streamlit.app/)**
 
 ![VesselWatch Dashboard](assets/dashboard.png)
-*Live map showing 16,937 vessels — red = high risk, orange = medium, blue = normal. Flagged vessels listed by risk score on the right.*
+*Live map showing vessels — red = high risk, orange = medium, blue = normal. Flagged vessels listed by risk score on the right.*
 
 ---
 
@@ -28,12 +28,12 @@ Rule-based systems fail because criminals learn the rules. **VesselWatch learns 
 
 | Metric | Value |
 |--------|-------|
-| Vessels analyzed | **16,937** |
-| Suspicious vessels flagged | **1,245** |
-| Precision | **64.34%** |
-| Recall | **23.89%** |
-| F1 Score | **34.84%** |
-| ROC-AUC | **0.8076** |
+| Vessels analyzed | **13,043** |
+| Suspicious vessels flagged | **764** |
+| Precision | **98.43%** |
+| Recall | **89.84%** |
+| F1 Score | **93.94%** |
+| ROC-AUC | **0.9905** |
 
 ### Behavioral validation
 
@@ -75,17 +75,27 @@ Rule-based systems fail because criminals learn the rules. **VesselWatch learns 
         │
         ▼
 ┌─────────────────────┐
-│ Feature Engineering  │  15 behavioral features per vessel
-│                     │  Each vessel fingerprinted against its own 7-day history
+│ Feature Engineering  │  32 behavioral features per vessel
+│                     │  Interaction features · Vessel-type Z-scores
+│                     │  Each vessel fingerprinted against its own history
 └─────────────────────┘
         │
         ▼
 ┌─────────────────────────────────────────┐
-│            Ensemble ML Models            │
+│       Unsupervised Anomaly Detection     │
 │                                         │
-│  Isolation Forest  ──  outliers (70%)   │
-│  DBSCAN  ──────────  rendezvous (30%)   │
+│  Isolation Forest  ──  outlier scores   │
+│  DBSCAN  ──────────  rendezvous flags   │
 │  LSTM Autoencoder  ──  trajectories     │
+└─────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────┐
+│         Supervised Stacking (V3)         │
+│                                         │
+│  GradientBoosting + RandomForest         │
+│  Trained on features + unsupervised      │
+│  scores with SMOTE class balancing       │
 └─────────────────────────────────────────┘
         │
         ▼
@@ -99,6 +109,20 @@ Rule-based systems fail because criminals learn the rules. **VesselWatch learns 
 │ Interactive Dashboard│  Live map · Risk filters · SHAP charts · Vessel drill-down
 └─────────────────────┘
 ```
+
+---
+
+## Key V3 Improvements
+
+| # | Improvement | Impact |
+|---|-------------|--------|
+| 1 | **Supervised stacking** — GradientBoosting + RandomForest on top of Isolation Forest scores | Primary precision/recall boost |
+| 2 | **Multi-signal pseudo-labels** — requires 2+ suspicious signals instead of any single threshold | Eliminates false labels |
+| 3 | **7 interaction features** — `gap×jump`, `gap×port_dist`, `speed_range`, etc. | Captures compound patterns |
+| 4 | **5 vessel-type Z-scores** — flags vessels deviating from their own type's baseline | Type-aware detection |
+| 5 | **SMOTE class balancing** — synthetically oversamples rare anomalies | Prevents majority-class bias |
+| 6 | **Optimal threshold from PR curve** — instead of hardcoded 0.55 | Maximizes F1 automatically |
+| 7 | **AIS gap threshold raised** from 2 → 6 hours | Removes noise from normal gaps |
 
 ---
 
@@ -119,7 +143,7 @@ Every flagged vessel comes with a full breakdown of which features drove the ris
 | Layer | Tools |
 |-------|-------|
 | Data processing | Python · Pandas · NumPy |
-| Machine learning | Scikit-learn · TensorFlow · Keras |
+| Machine learning | Scikit-learn · TensorFlow · Keras · imbalanced-learn |
 | Explainability | SHAP |
 | Mapping | Folium · GeoPandas |
 | Dashboard | Streamlit |
@@ -142,18 +166,26 @@ Every flagged vessel comes with a full breakdown of which features drove the ris
 
 ```
 VesselWatch/
-├── app.py                          ← Streamlit dashboard entry point
-├── requirements.txt                ← All Python dependencies
-├── final_results.csv               ← ML outputs for 16,937 vessels
-├── shap_explanations.csv           ← SHAP values for top 50 flagged vessels
+├── app.py                              ← Streamlit dashboard entry point
+├── requirements.txt                    ← Python dependencies
+├── runtime.txt                         ← Python version for deployment
+├── final_results.csv                   ← ML outputs for 13,043 vessels
+├── shap_explanations.csv               ← SHAP values for top 50 flagged vessels
 ├── README.md
-├── assets/
-│   ├── dashboard.png               ← Main dashboard screenshot
-│   ├── analytics.png               ← Charts and anomaly breakdown
-│   ├── shap.png                    ← SHAP explainability view
-    └── map_popup.png               ← Detail of each vessel in dashboard
-└── notebooks/
-    └── VesselWatch_V2.ipynb        ← Full ML pipeline, step by step
+├── pipeline/                           ← V3 modular ML pipeline
+│   ├── __init__.py
+│   ├── config.py                       ← Constants, paths, hyperparameters
+│   ├── data_loader.py                  ← Load AIS CSVs, train/test split, cleaning
+│   ├── feature_engineering.py          ← 32 features: speed, gaps, interactions, Z-scores
+│   ├── labels.py                       ← Multi-signal pseudo-label generation
+│   ├── models.py                       ← IF, DBSCAN, LSTM, supervised stacking
+│   ├── evaluation.py                   ← Cross-validation, metrics, visualization
+│   └── run_pipeline.py                 ← Main runner — orchestrates everything
+└── assets/
+    ├── dashboard.png
+    ├── analytics.png
+    ├── shap.png
+    └── map_popup.png
 ```
 
 ---

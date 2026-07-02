@@ -75,28 +75,31 @@ st.markdown("""
 # ── LOAD DATA ─────────────────────────────────────────
 @st.cache_data
 def load_data():
-    try:
-        return pd.read_csv("final_results.csv")
-    except:
-        return pd.read_parquet(
-            "/content/drive/MyDrive/VesselWatch/data/processed/final_results_v2.parquet"
-        )
+    return pd.read_csv("final_results.csv")
 
 @st.cache_data
 def load_shap():
-    try:
-        return pd.read_csv("shap_explanations.csv")
-    except:
-        return pd.read_parquet(
-            "/content/drive/MyDrive/VesselWatch/data/processed/shap_explanations_v2.parquet"
-        )
+    return pd.read_csv("shap_explanations.csv")
 
-ML_COLS = [
+# Base ML columns (always present in both V2 and V3)
+_BASE_ML_COLS = [
     "speed_mean","speed_std","speed_min","speed_max",
     "speed_variance","total_distance_km","total_time_hrs",
     "loitering_score","max_gap_hrs","total_gaps","gap_flag",
     "position_jump_km","dist_from_port_km",
     "behavioral_score","speed_consistency"
+]
+
+# V3 adds these columns — they'll be used if present in SHAP data
+_V3_EXTRA_COLS = [
+    "avg_gap_hrs","gap_duration_std",
+    "cog_change_mean","cog_change_max",
+    "gap_x_jump","gap_x_port_dist","speed_range",
+    "distance_per_hour","gap_ratio","ping_density","jump_per_gap",
+    "max_gap_hrs_zscore","position_jump_km_zscore",
+    "dist_from_port_km_zscore","speed_mean_zscore",
+    "loitering_score_zscore",
+    "iso_risk_score","rendezvous_flag"
 ]
 
 with st.spinner("Loading VesselWatch..."):
@@ -534,9 +537,14 @@ else:
 
         with sc:
             if len(vs) > 0:
-                sv = vs[ML_COLS].iloc[0]
+                # Dynamically detect SHAP feature columns
+                available_cols = [c for c in _BASE_ML_COLS + _V3_EXTRA_COLS
+                                  if c in vs.columns]
+                if not available_cols:
+                    available_cols = _BASE_ML_COLS
+                sv = vs[available_cols].iloc[0]
                 df_plot = pd.DataFrame({
-                    "Feature": ML_COLS,
+                    "Feature": available_cols,
                     "Value": [-x for x in sv],
                     "Direction": [
                         "Pushes to Anomaly"
@@ -589,9 +597,9 @@ st.divider()
 st.markdown("""
 <div style="text-align:center;color:#4a5568;
             font-family:monospace;font-size:10px">
-    VesselWatch v2.0 | Isolation Forest + 
-    DBSCAN + LSTM Autoencoder | 
+    VesselWatch v3.0 | Isolation Forest + 
+    DBSCAN + GradientBoosting + RandomForest | 
     SHAP Explainability | 
-    5.6M AIS Records | 16,937 Vessels Analyzed
+    5.6M AIS Records | 13,043 Vessels Analyzed
 </div>
 """, unsafe_allow_html=True)
