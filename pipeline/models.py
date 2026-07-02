@@ -11,11 +11,9 @@ from sklearn.ensemble import (
 from sklearn.cluster import DBSCAN
 from sklearn.metrics import precision_recall_curve
 
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import (
-    Input, LSTM, Dense, RepeatVector, TimeDistributed
-)
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 try:
     from imblearn.over_sampling import SMOTE
@@ -97,30 +95,64 @@ def train_dbscan(train_features, test_features):
           f'Test: {test_features["rendezvous_flag"].sum()}')
 
 
-def train_lstm_autoencoder(X_train_scaled, X_test_scaled, test_features):
-    """Train LSTM Autoencoder (demo — excluded from ensemble)."""
-    print('Training LSTM Autoencoder...')
-    X_lstm = X_train_scaled.reshape(
-        X_train_scaled.shape[0], 1, X_train_scaled.shape[1])
-    inp = Input(shape=(1, X_train_scaled.shape[1]))
-    enc = LSTM(64, activation='relu', return_sequences=False)(inp)
-    rep = RepeatVector(1)(enc)
-    dec = LSTM(64, activation='relu', return_sequences=True)(rep)
-    out = TimeDistributed(Dense(X_train_scaled.shape[1]))(dec)
-    autoencoder = Model(inp, out)
-    autoencoder.compile(optimizer='adam', loss='mse')
-    autoencoder.fit(X_lstm, X_lstm, epochs=50, batch_size=256,
-                    validation_split=0.1, shuffle=True, verbose=0)
+class LSTMAutoencoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim):
+        super(LSTMAutoencoder, self).__init__()
+        # Encoder
+        self.encoder = nn.LSTM(input_dim, hidden_dim, batch_first=True)
+        # Decoder
+        self.decoder = nn.LSTM(hidden_dim, input_dim, batch_first=True)
+        
+    def forward(self, x):
+        _, (hidden, _) = self.encoder(x)
+        hidden_repeated = hidden.permute(1, 0, 2)
+        output, _ = self.decoder(hidden_repeated)
+        return output
 
-    X_test_lstm = X_test_scaled.reshape(
-        X_test_scaled.shape[0], 1, X_test_scaled.shape[1])
-    X_recon = autoencoder.predict(X_test_lstm, verbose=0)
-    recon_err = np.mean(np.power(X_test_lstm - X_recon, 2), axis=(1, 2))
-    lstm_risk = (recon_err - recon_err.min()) / \
-                (recon_err.max() - recon_err.min() + 1e-8)
+
+def train_lstm_autoencoder(X_train_scaled, X_test_scaled, test_features):
+    """Train LSTM Autoencoder using PyTorch (demo — excluded from ensemble)."""
+    print('Training LSTM Autoencoder (PyTorch)...')
+    
+    # Convert numpy arrays to PyTorch Tensors
+    X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32).unsqueeze(1)
+    X_test_tensor = torch.tensor(X_test_scaled, dtype=torch.float32).unsqueeze(1)
+    
+    input_dim = X_train_scaled.shape[1]
+    model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=64)
+    
+    # Loss and Optimizer
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    
+    # Simple training loop (50 epochs, batch size 256 equivalent)
+    model.train()
+    dataset_size = len(X_train_tensor)
+    batch_size = 256
+    
+    for epoch in range(50):
+        permutation = torch.randperm(dataset_size)
+        for i in range(0, dataset_size, batch_size):
+            indices = permutation[i:i+batch_size]
+            batch_x = X_train_tensor[indices]
+            
+            optimizer.zero_grad()
+            outputs = model(batch_x)
+            loss = criterion(outputs, batch_x)
+            loss.backward()
+            optimizer.step()
+            
+    # Evaluation (Calculating reconstruction error)
+    model.eval()
+    with torch.no_grad():
+        X_recon = model(X_test_tensor)
+        recon_err = torch.mean((X_test_tensor - X_recon) ** 2, dim=(1, 2)).numpy()
+        
+    # Scale error to a 0-1 risk score
+    lstm_risk = (recon_err - recon_err.min()) / (recon_err.max() - recon_err.min() + 1e-8)
     test_features['lstm_risk_score'] = lstm_risk
     print(f'✅ LSTM recon error mean: {recon_err.mean():.6f}')
-    return autoencoder
+    return model
 
 
 def build_stack_features(X_scaled, feat_df):

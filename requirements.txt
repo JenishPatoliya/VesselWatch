@@ -6,3 +6,6 @@ folium
 streamlit-folium
 plotly
 pyarrow
+torch
+imbalanced-learn
+shap
